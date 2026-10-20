@@ -1,0 +1,80 @@
+﻿@model MyProject.Models.Order
+@{
+    ViewData["Title"] = "確認購買資訊";
+}
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f4f7f6; padding-top: 5rem; }
+        .form-card { background: #fff; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+    <div class="container max-width-md" style="max-width: 600px;">
+        <div class="form-card p-4 p-md-5">
+            <div class="text-center mb-4">
+                <i class="bi bi-cart-check text-success" style="font-size: 3rem;"></i>
+                <h3 class="fw-bold mt-2">請填寫面交訂單</h3>
+                <p class="text-muted">填寫您的聯絡與面交細節，送出後賣方即可看見！</p>
+            </div>
+
+            <div class="alert alert-light border d-flex justify-content-between align-items-center mb-4 rounded-3">
+                <div>
+                    <small class="text-muted d-block">您正在購買：</small>
+                    <strong class="fs-5 text-dark">@ViewBag.ItemTitle</strong>
+                </div>
+                <span class="fs-4 fw-bold text-danger">$@ViewBag.ItemPrice</span>
+            </div>
+
+            <form asp-action="Buy" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="ItemId" />
+                <input type="hidden" asp-for="BuyerId" />
+                <input type="hidden" asp-for="SellerId" />
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-secondary">您的名字</label>
+                    <input asp-for="BuyerName" class="form-control" placeholder="請輸入面交時稱呼的名字" required />
+                    <span asp-validation-for="BuyerName" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-secondary">聯絡資訊 (手機號碼 / Line ID)</label>
+                    <input asp-for="ContactInfo" class="form-control" placeholder="例: 0912345678 / lineid123" required />
+                    <span asp-validation-for="ContactInfo" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-secondary">希望的面交地點</label>
+                    <input asp-for="MeetLocation" class="form-control" placeholder="例: 大學正門口 / 7-11校園門市" required />
+                    <span asp-validation-for="MeetLocation" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-secondary">希望的面交時間</label>
+                    <input asp-for="MeetTime" type="datetime-local" class="form-control" placeholder="例: 下週一中午 12:10 / 平日晚上6點後" required />
+                    <span asp-validation-for="MeetTime" class="text-danger small"></span>
+                </div>
+
+                <div class="row g-2">
+                    <div class="col-6">
+                        <a asp-controller="Item" asp-action="Index" class="btn btn-light w-100 fw-bold py-2 rounded-pill">取消</a>
+                    </div>
+                    <div class="col-6">
+                        <button type="submit" class="btn btn-success w-100 fw-bold py-2 rounded-pill shadow-sm">確認送出訂單</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>

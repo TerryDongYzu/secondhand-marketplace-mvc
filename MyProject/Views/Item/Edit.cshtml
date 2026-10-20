@@ -1,0 +1,234 @@
+﻿@model MyProject.Models.Item
+
+@{
+    ViewData["Title"] = "編輯物品";
+    var currentImages = ViewBag.CurrentImages as List<MyProject.Models.ItemImage> ?? new List<MyProject.Models.ItemImage>();
+}
+
+@section Styles {
+    <style>
+        .form-card {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.05);
+        }
+
+        .image-manage-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .image-manage-item {
+            position: relative;
+            width: 100%;
+            height: 100px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #dee2e6;
+            transition: border-color 0.2s;
+        }
+
+            .image-manage-item img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+
+            .image-manage-item.to-delete {
+                border-color: #dc3545;
+                opacity: 0.5;
+            }
+
+                .image-manage-item.to-delete::after {
+                    content: '\F62A';
+                    font-family: bootstrap-icons;
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    color: #dc3545;
+                    font-size: 2rem;
+                    font-weight: bold;
+                }
+
+        .delete-overlay {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: rgba(220, 53, 69, 0.8);
+            color: white;
+            border: none;
+            padding: 2px 6px;
+            border-bottom-left-radius: 8px;
+            cursor: pointer;
+            z-index: 10;
+            transition: background-color 0.2s;
+        }
+
+            .delete-overlay:hover {
+                background-color: rgba(220, 53, 69, 1);
+            }
+
+        .image-manage-item.to-delete .delete-overlay {
+            content: '\F623';
+            font-family: bootstrap-icons;
+            background-color: #198754;
+            border-bottom-left-radius: 0;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 8px;
+            right: auto;
+            left: 0;
+        }
+    </style>
+}
+
+<div class="container mt-4 mb-5" style="max-width: 800px;">
+    <div class="form-card p-4 p-md-5">
+        <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+            <h2 class="fw-bold text-dark mb-0"><i class="bi bi-pencil-square text-primary me-2"></i>編輯商品資料</h2>
+            <a href="~/Item/MyItems" class="btn btn-outline-secondary btn-sm rounded-pill px-3"><i class="bi bi-arrow-left me-1"></i> 返回管理</a>
+        </div>
+
+        @if (ViewBag.DebugMessage != null)
+        {
+            <div class="alert alert-danger shadow-sm rounded-3 mb-4" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i> @ViewBag.DebugMessage
+            </div>
+        }
+        <form asp-action="Edit" method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="ItemId" />
+            <input type="hidden" asp-for="CreatedAt" />
+            <input type="hidden" asp-for="Status" />
+            <input type="hidden" asp-for="OwnerId" />
+            <input type="hidden" asp-for="BuyerId" />
+  
+            <div class="row g-3 mb-4">
+                <div class="col-md-12">
+                    <label asp-for="Title" class="form-label fw-bold"></label>
+                    <input asp-for="Title" class="form-control form-control-lg rounded-3" placeholder="例如: 乾淨期末講義 / 九成新吉他" />
+                    <span asp-validation-for="Title" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="CategoryId" class="form-label fw-bold">分類</label>
+                    <select asp-for="CategoryId" class="form-select" asp-items="ViewBag.CategoryId"></select>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="Price" class="form-label fw-bold"></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light fw-bold text-danger">$</span>
+                        <input asp-for="Price" class="form-control fw-bold text-danger" type="number" step="1" />
+                    </div>
+                    <span asp-validation-for="Price" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="ItemCondition" class="form-label fw-bold">物品新舊狀況</label>
+                    <select asp-for="ItemCondition" class="form-control" required>
+                        <option value="">-- 請選擇新舊程度 --</option>
+                        <option value="全新">全新</option>
+                        <option value="九成新">九成新</option>
+                        <option value="有使用痕跡">有使用痕跡/畫記</option>
+                        <option value="堪用">堪用</option>
+                    </select>
+                    <span asp-validation-for="ItemCondition" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-12">
+                    <label asp-for="Description" class="form-label fw-bold"></label>
+                    <textarea asp-for="Description" class="form-control rounded-3" rows="4" placeholder="請詳細描述物品的新舊狀況、瑕疵或規格..."></textarea>
+                    <span asp-validation-for="Description" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="card mb-4 bg-light border-0 shadow-sm rounded-3">
+                <div class="card-body p-4">
+                    <h5 class="card-title fw-bold text-secondary mb-3"><i class="bi bi-images me-2"></i>商品圖片管理</h5>
+
+                    <label class="form-label fw-bold text-dark small mb-1">目前擁有的圖片 (@currentImages.Count / 5)</label>
+                    <p class="text-muted small mb-3">點擊圖片右上角的 <i class="bi bi-x-lg text-danger"></i> 標記為刪除，送出表單後將永久移除。</p>
+
+                    <div class="image-manage-grid mb-4">
+                        @if (currentImages.Any())
+                        {
+                            int index = 0; // 🌟 準備號碼牌
+                            foreach (var img in currentImages)
+                            {
+                                <div class="image-manage-item" id="img-container-@index">
+                                    <img src="@Url.Content("~" + img.ImageUrl)" alt="商品圖片" />
+
+                                    <button type="button" class="delete-overlay" onclick="toggleDeleteImage(@index, '@img.ImageUrl')" title="標記為刪除">
+                                        <i class="bi bi-x-lg" id="icon-@index"></i>
+                                    </button>
+                                </div>
+                                index++; // 發完一張號碼牌就 +1
+                            }
+                        }
+                        else
+                        {
+                            <div class="text-center text-muted py-3 grid-full-width border rounded-2" style="grid-column: 1 / -1; background: #fff;">
+                                <i class="bi bi-image" style="font-size: 2rem;"></i><br />目前無圖片
+                            </div>
+                        }
+                    </div>
+
+                    <div id="deleted-images-container"></div>
+
+                    <label class="form-label fw-bold text-dark mt-3"><i class="bi bi-plus-circle-fill text-success me-1"></i>上傳新圖片 (追加)</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="bi bi-upload text-muted"></i></span>
+                        <input type="file" name="files" class="form-control border-start-0" multiple accept="image/*" />
+                    </div>
+                    <small class="text-muted d-block mt-1">選取的圖片將會追加到商品圖片清單中。</small>
+                </div>
+            </div>
+            <hr class="my-4">
+
+            <div class="row g-2">
+                <div class="col-6 col-sm-4">
+                    <a href="~/Item/MyItems" class="btn btn-light btn-lg w-100 fw-bold rounded-pill">取消</a>
+                </div>
+                <div class="col-6 col-sm-8">
+                    <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold rounded-pill shadow"><i class="bi bi-cloud-arrow-up me-1"></i> 確認更新資料</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // 🌟 接收號碼牌 (index) 與真實網址 (imageUrl)
+        function toggleDeleteImage(index, imageUrl) {
+            const container = document.getElementById(`img-container-${index}`);
+            const icon = document.getElementById(`icon-${index}`);
+            const deletedContainer = document.getElementById('deleted-images-container');
+
+            let hiddenInput = document.getElementById(`hidden-del-${index}`);
+
+            if (container.classList.contains('to-delete')) {
+                container.classList.remove('to-delete');
+                icon.classList.remove('bi-arrow-counterclockwise');
+                icon.classList.add('bi-x-lg');
+
+                if (hiddenInput) hiddenInput.remove();
+            } else {
+                container.classList.add('to-delete');
+                icon.classList.remove('bi-x-lg');
+                icon.classList.add('bi-arrow-counterclockwise');
+
+                // 動態插入 hidden input，把 value 設定為「真實網址」，讓後端去刪除
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'deletedImages';
+                input.value = imageUrl;
+                input.id = `hidden-del-${index}`;
+                deletedContainer.appendChild(input);
+            }
+        }
+    </script>
+}

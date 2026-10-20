@@ -1,0 +1,187 @@
+﻿@model MyProject.Models.Item
+
+@{
+    ViewData["Title"] = "物品詳細資訊";
+    var images = ViewBag.ItemImages as IEnumerable<MyProject.Models.ItemImage>;
+}
+
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">📦物品詳細資訊</h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <h5 class="fw-bold border-bottom pb-2">物品照片</h5>
+                    @if (images != null && images.Any())
+                    {
+                        <div class="d-flex flex-wrap gap-2 mt-3">
+                            @foreach (var img in images)
+                            {
+                                <img src="@Url.Content("~" + img.ImageUrl)" class="img-fluid rounded border shadow-sm" style="max-height: 300px; object-fit: cover;" alt="物品照片" />
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-secondary mt-3">賣家尚未上傳任何照片。</div>
+                    }
+                </div>
+
+                <div class="col-md-6">
+                    <h5 class="fw-bold border-bottom pb-2">@Model.Title</h5>
+                    <dl class="row mt-3">
+
+                        <dt class="col-sm-4 text-muted">發布者學號</dt>
+                        <dd class="col-sm-8">@Model.OwnerId</dd>
+
+                        <dt class="col-sm-4 text-muted">分類</dt>
+                        <dd class="col-sm-8">@(Model.Category != null ? Model.Category.CategoryName : "無分類")</dd>
+
+                        <dt class="col-sm-4 text-muted">售價</dt>
+                        <dd class="col-sm-8 text-danger fw-bold h5">$@Model.Price</dd>
+
+                        <dt class="col-sm-4 text-muted">新舊狀況</dt>
+                        <dd class="col-sm-8"><span class="badge bg-secondary">@Model.ItemCondition</span></dd>
+
+                        <dt class="col-sm-4 text-muted">目前狀態</dt>
+                        <dd class="col-sm-8">
+                            @if (Model.Status == "0")
+                            {
+                                <span class="badge bg-success">可購買</span>
+                            }
+                            @if(Model.Status == "1")
+                            {
+                                <span class="badge bg-black">面交中</span>
+                            }
+                            @if (Model.Status == "2")
+                            {
+                                <span class="badge bg-danger">已成交</span>
+                            }
+                        </dd>
+
+                        <dt class="col-sm-4 text-muted">刊登時間</dt>
+                        <dd class="col-sm-8">@Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")</dd>
+                      
+                        <dt class="col-sm-4 text-muted">詳細描述</dt>
+                        <dd class="col-sm-8">@Model.Description</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+            <a asp-action="Index" class="btn btn-outline-secondary">返回列表</a>
+
+            @if (Model.Status == "0" && User.Identity.Name != Model.OwnerId)
+            {
+                <a href="~/Item/Buy/@Model.ItemId" class="btn btn-success btn-lg rounded-pill px-5 fw-bold">立即購買</a>
+            }
+            @if (Model.Status == "1")
+            {
+                <button class="btn btn-secondary btn-lg rounded-pill px-5 fw-bold" disabled>
+                    <i class="bi bi-lock-fill me-2"></i> 本物品面交中
+                </button>
+            }
+            @if (Model.Status == "2")
+            {
+                <button class="btn btn-secondary btn-lg rounded-pill px-5 fw-bold" disabled>
+                    <i class="bi bi-lock-fill me-2"></i> 本物品已售出
+                </button>
+            }
+
+            @* 🔑 核心邏輯：是物品擁有者，或者登入的是 "admin" (超級管理員)，就顯示按鈕 *@
+            @if (User.Identity.IsAuthenticated && (User.Identity.Name == Model.OwnerId || User.Identity.Name == "admin"))
+            {
+                <div class="d-flex gap-2">
+                @if (Model.Status == "0")
+                {
+                    <a asp-action="Edit" asp-route-id="@Model.ItemId" class="btn btn-warning">編輯</a>
+                    <a asp-action="Delete" asp-route-id="@Model.ItemId" class="btn btn-danger">刪除</a>
+                }
+                else
+                {
+                    <button class="btn btn-secondary btn-sm fw-bold" disabled>
+                        <i class="bi bi-lock-fill"></i> 無法更改資料
+                    </button>
+                }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+<div class="card shadow-sm mt-4 mb-5 border-0">
+    <div class="card-header bg-secondary text-white rounded-top">
+        <h4 class="mb-0"><i class="bi bi-chat-dots me-2"></i> 💬留言發問區</h4>
+    </div>
+
+    <div class="card-body" style="background-color: #f0f2f5;">
+
+        <div id="chatContainer" class="mb-4 d-flex flex-column gap-3 pe-2" style="max-height: 400px; overflow-y: auto;">
+            @if (ViewBag.Comments != null)
+            {
+                // 🌟 2. 使用 .OrderBy() 強制將留言依照時間「由舊到新」排序 (最老的在最上面，最新的在最下面)
+                var comments = (ViewBag.Comments as IEnumerable<MyProject.Models.Comment>)?.OrderBy(c => c.Timestamp);
+
+                if (comments != null && comments.Any())
+                {
+                    foreach (var c in comments)
+                    {
+                        bool isMyComment = (User.Identity?.Name == c.UserId);
+
+                        <div class="d-flex @(isMyComment ? "justify-content-end" : "justify-content-start")">
+                            <div style="max-width: 80%;">
+                                <div class="small text-muted mb-1 @(isMyComment ? "text-end" : "text-start")" style="font-size: 0.8rem;">
+                                    @if (isMyComment)
+                                    {
+                                        <span class="fw-bold text-success">我</span> <span>• @c.Timestamp.ToString("MM/dd HH:mm")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="fw-bold">學號: @c.UserId</span> <span>• @c.Timestamp.ToString("MM/dd HH:mm")</span>
+                                    }
+                                </div>
+                                <div class="p-3 shadow-sm @(isMyComment ? "bg-success text-white" : "bg-white text-dark")"
+                                     style="border-radius: @(isMyComment ? "18px 18px 4px 18px" : "18px 18px 18px 4px"); line-height: 1.5;">
+                                    @c.Content
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-5">
+                        <i class="bi bi-chat-square-text text-muted" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-3 fw-bold">目前還沒有人留言，來搶頭香發問吧！</p>
+                    </div>
+                }
+            }
+        </div>
+
+        <hr class="my-4" style="border-color: #dee2e6;">
+
+        <form asp-action="AddComment" method="post" class="bg-white p-3 rounded-4 shadow-sm border-0">
+            <input type="hidden" name="itemId" value="@Model.ItemId" />
+            <div class="form-group mb-3">
+                <label class="fw-bold mb-2 text-secondary"><i class="bi bi-pencil-square me-1"></i> 新增留言</label>
+                <textarea name="content" class="form-control bg-light border-0" rows="3" placeholder="想問賣家什麼問題呢？（例如：請問可以這週三中午在七館面交嗎？）" style="resize: none;" required></textarea>
+            </div>
+            <div class="text-end">
+                <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
+                    <i class="bi bi-send-fill me-1"></i> 送出留言
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var chatDiv = document.getElementById("chatContainer");
+        if (chatDiv) {
+            // 將捲軸的垂直位置 (scrollTop) 設定為內容的總高度 (scrollHeight)
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+        }
+    });
+</script>

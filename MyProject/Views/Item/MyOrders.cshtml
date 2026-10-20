@@ -1,0 +1,319 @@
+﻿@{
+    var myPurchases = ViewBag.MyPurchases as List<MyProject.Models.Order> ?? new List<MyProject.Models.Order>();
+    var mySales = ViewBag.MySales as List<MyProject.Models.Order> ?? new List<MyProject.Models.Order>();
+
+    // 🌟 接收從 Controller 傳過來的賣家字典
+    var sellersDict = ViewBag.Sellers as Dictionary<string, MyProject.Models.Member>;
+
+    ViewData["Title"] = "二手物品交易平台-你的訂單";
+}
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f4f7f6;
+            padding-top: 90px;
+        }
+
+        .order-card {
+            background: #fff;
+            border-radius: 12px;
+            border: none;
+            transition: all 0.2s;
+        }
+
+            .order-card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 5px 15px rgba(0,0,0,0.08) !important;
+            }
+
+        .nav-tabs .nav-link {
+            font-weight: bold;
+            color: #7f8c8d;
+            border: none;
+        }
+
+            .nav-tabs .nav-link.active {
+                color: #0d6efd;
+                border-bottom: 3px solid #0d6efd;
+                background: none;
+            }
+
+        .detail-box {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px 15px;
+            margin-top: 12px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-light bg-white fixed-top shadow-sm py-3">
+        <div class="container">
+            <a class="navbar-brand" asp-controller="Item" asp-action="Index">二手物品交易平台</a>
+            <div class="navbar-nav ms-auto">
+                <a asp-controller="Item" asp-action="Index" class="btn btn-outline-primary rounded-pill px-4 fw-bold btn-sm"><i class="bi bi-arrow-left me-1"></i> 返回大廳</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <h2 class="fw-bold mb-4"><i class="bi bi-receipt-cutoff text-primary me-2"></i>你的訂單中心</h2>
+
+        <ul class="nav nav-tabs mb-4" id="orderTab" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active fs-5 pb-3" id="ongoing-tab" data-bs-toggle="tab" data-bs-target="#ongoing" type="button">
+                    <i class="bi bi-clock-history me-2"></i>交易紀錄中心 (@(((List<MyProject.Models.Order>)ViewBag.OngoingOrders).Count))
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link fs-5 pb-3" id="buyer-tab" data-bs-toggle="tab" data-bs-target="#buyer" type="button">
+                    <i class="bi bi-bag-check me-2"></i>我買進的物品 (@myPurchases.Count)
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link fs-5 pb-3" id="seller-tab" data-bs-toggle="tab" data-bs-target="#seller" type="button">
+                    <i class="bi bi-cash-coin me-2"></i>我賣出的物品 (@mySales.Count)
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="orderTabContent">
+
+            <div class="tab-pane fade show active" id="ongoing" role="tabpanel">
+                @{
+                    var ongoingOrders = ViewBag.OngoingOrders as List<MyProject.Models.Order> ?? new List<MyProject.Models.Order>();
+                }
+                @if (ongoingOrders.Any())
+                {
+                    <div class="row row-cols-1 g-3">
+                        @foreach (var order in ongoingOrders)
+                        {
+                            bool isBuyer = (User.Identity?.Name == order.BuyerId);
+                            var seller = (sellersDict != null && order.SellerId != null && sellersDict.ContainsKey(order.SellerId)) ? sellersDict[order.SellerId] : null;
+
+                            <div class="col">
+                                <div class="card order-card shadow-sm p-4 border-start border-warning border-5">
+                                    <div class="d-flex justify-content-between align-items-start flex-wrap border-bottom pb-3">
+                                        <div>
+                                            <span class="badge @(isBuyer ? "bg-primary" : "bg-info text-dark") mb-2">
+                                                @(isBuyer ? "買家" : "賣家")
+                                            </span>
+                                            <h4 class="fw-bold text-dark mb-1">@(order.Item?.Title ?? "未命名物品")</h4>
+                                            <span class="text-muted small"><i class="bi bi-clock me-1"></i>下單時間: @order.OrderDate.ToString("yyyy/MM/dd HH:mm")</span>
+                                        </div>
+                                        <div class="text-end">
+                                            <h3 class="text-danger fw-bold mb-2">$@(order.Item?.Price)</h3>
+
+                                            @if (order.TransactionStatus == "處理中")
+                                            {
+                                                <span class="badge bg-warning text-dark px-3 py-1 rounded-pill">等待賣家確認</span>
+                                            }
+                                            else if (order.TransactionStatus == "已接受")
+                                            {
+                                                <span class="badge bg-info text-dark px-3 py-1 rounded-pill">面交約定中</span>
+                                            }
+                                            else if (order.TransactionStatus == "已拒絕")
+                                            {
+                                                <span class="badge bg-secondary px-3 py-1 rounded-pill">賣家已婉拒</span>
+                                            }
+                                            else if (order.TransactionStatus == "已取消")
+                                            {
+                                                <span class="badge bg-dark px-3 py-1 rounded-pill">交易已取消</span>
+                                            }
+                                        </div>
+                                    </div>
+
+                                    <div class="detail-box border-start border-info border-4 bg-light text-dark mt-3 mb-2">
+                                        <h6 class="fw-bold text-info mb-2"><i class="bi bi-info-circle-fill me-1"></i>面交與聯絡細節：</h6>
+                                        <div class="row">
+                                            @if (isBuyer)
+                                            {
+                                                <div class="col-md-6 mb-2"><strong>賣家姓名：</strong><span class="text-danger fw-bold">@(seller != null ? seller.Name : order.SellerId)</span> (學號: @order.SellerId)</div>
+                                                <div class="col-md-6 mb-2"><strong>聯絡信箱：</strong><span class="text-primary fw-bold">@(seller != null ? seller.Email : "未提供")</span></div>
+                                            }
+                                            else
+                                            {
+                                                <div class="col-md-6 mb-2"><strong>買家姓名：</strong><span class="text-danger fw-bold">@order.BuyerName</span> (學號: @order.BuyerId)</div>
+                                                <div class="col-md-6 mb-2"><strong>聯絡方式：</strong><span class="text-primary fw-bold">@order.ContactInfo</span></div>
+                                            }
+                                            <div class="col-md-6 mt-1"><strong>約定地點：</strong><span class="text-dark bg-warning-subtle px-2 py-1 rounded">@order.MeetLocation</span></div>
+                                            <div class="col-md-6 mt-1"><strong>約定時間：</strong><span class="text-dark bg-warning-subtle px-2 py-1 rounded">@order.MeetTime</span></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex justify-content-between align-items-end flex-wrap mt-2">
+                                        <div class="small text-muted mt-2">
+                                            @if (order.TransactionStatus == "已拒絕" || order.TransactionStatus == "已取消")
+                                            {
+                                                <span class="text-danger fw-bold"><i class="bi bi-exclamation-circle me-1"></i>原因：@order.RejectReason</span>
+                                            }
+                                        </div>
+
+                                        <div class="d-flex gap-2 mt-2">
+                                            @if (!isBuyer && order.TransactionStatus == "處理中")
+                                            {
+                                                <form asp-action="AcceptOrder" method="post"><input type="hidden" name="orderId" value="@order.Id" /><button type="submit" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm">接受</button></form>
+                                                <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#rejectModal" onclick="document.getElementById('rejectOrderId').value = '@order.Id';">婉拒</button>
+                                            }
+
+                                            @if (isBuyer && order.TransactionStatus == "已接受")
+                                            {
+                                                <form asp-action="CompleteOrder" method="post" onsubmit="return confirm('請確認您已經拿到物品並檢查無誤喔！');">
+                                                    <input type="hidden" name="orderId" value="@order.Id" />
+                                                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm"><i class="bi bi-check2-circle me-1"></i>完成交易(已取貨)</button>
+                                                </form>
+                                            }
+
+                                            @if (order.TransactionStatus == "處理中" || order.TransactionStatus == "已接受")
+                                            {
+                                                <form asp-action="CancelOrder" method="post" onsubmit="return confirm('確定要取消這筆交易並將商品重新釋出嗎？');">
+                                                    <input type="hidden" name="orderId" value="@order.Id" />
+                                                    <input type="hidden" name="cancelReason" value="買賣雙方取消交易 / 面交未到" />
+                                                    <button type="submit" class="btn btn-link text-decoration-none text-muted btn-sm"><i class="bi bi-trash me-1"></i>取消交易</button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-journal-x" style="font-size: 3.5rem;"></i>
+                        <p class="mt-2 fw-bold">目前沒有任何進行中的交易紀錄喔！</p>
+                    </div>
+                }
+            </div>
+
+
+            <div class="tab-pane fade" id="buyer" role="tabpanel">
+                @if (myPurchases.Any())
+                {
+                    <div class="row row-cols-1 g-3">
+                        @foreach (var order in myPurchases)
+                        {
+                            var seller = (sellersDict != null && order.SellerId != null && sellersDict.ContainsKey(order.SellerId)) ? sellersDict[order.SellerId] : null;
+                            <div class="col">
+                                <div class="card order-card shadow-sm p-4 border-start border-success border-5">
+                                    <div class="d-flex justify-content-between align-items-start flex-wrap border-bottom pb-3">
+                                        <div>
+                                            <h4 class="fw-bold text-dark mb-1">@(order.Item?.Title ?? "未命名物品")</h4>
+                                            <span class="badge bg-light text-secondary border">分類: @(order.Item?.Category?.CategoryName ?? "無")</span>
+                                            <span class="text-muted small ms-2"><i class="bi bi-clock me-1"></i>下單時間: @order.OrderDate.ToString("yyyy/MM/dd HH:mm")</span>
+                                        </div>
+                                        <div class="text-end">
+                                            <h3 class="text-danger fw-bold mb-2">$@(order.Item?.Price)</h3>
+                                            <span class="badge bg-success px-3 py-2 rounded-pill"><i class="bi bi-check-circle-fill me-1"></i> 交易已完成</span>
+                                        </div>
+                                    </div>
+                                    <div class="detail-box border-start border-success border-4 bg-light text-dark mt-3">
+                                        <h6 class="fw-bold text-success mb-2"><i class="bi bi-person-lines-fill me-1"></i>賣家聯絡資訊：</h6>
+                                        <div class="row">
+                                            <div class="col-md-6"><strong>賣家真實姓名：</strong><span class="text-danger fw-bold">@(seller != null ? seller.Name : order.SellerId)</span> (學號: @order.SellerId)</div>
+                                            <div class="col-md-6"><strong>聯絡信箱 (Email)：</strong><span class="text-primary fw-bold">@(seller != null ? seller.Email : "未提供")</span></div>
+                                            <div class="col-md-6 mt-2"><strong>面交地點：</strong><span class="text-dark bg-warning-subtle px-1">@order.MeetLocation</span></div>
+                                            <div class="col-md-6 mt-2"><strong>面交時間：</strong><span class="text-dark bg-warning-subtle px-1">@order.MeetTime</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-bag-check" style="font-size: 3.5rem;"></i>
+                        <p class="mt-2 fw-bold">你目前還沒有買過任何東西喔！</p>
+                    </div>
+                }
+            </div>
+
+
+            <div class="tab-pane fade" id="seller" role="tabpanel">
+                @if (mySales.Any())
+                {
+                    <div class="row row-cols-1 g-3">
+                        @foreach (var order in mySales)
+                        {
+                            <div class="col">
+                                <div class="card order-card shadow-sm p-4 border-start border-success border-5">
+                                    <div class="d-flex justify-content-between align-items-start flex-wrap border-bottom pb-3">
+                                        <div>
+                                            <h4 class="fw-bold text-dark mb-1">@(order.Item?.Title ?? "未命名物品")</h4>
+                                            <span class="badge bg-light text-secondary border">分類: @(order.Item?.Category?.CategoryName ?? "無")</span>
+                                            <span class="text-muted small ms-2"><i class="bi bi-clock me-1"></i>成交時間: @order.OrderDate.ToString("yyyy/MM/dd HH:mm")</span>
+                                        </div>
+                                        <div class="text-end">
+                                            <h3 class="text-success fw-bold mb-2">$@(order.Item?.Price)</h3>
+                                            <span class="badge bg-success px-3 py-2 rounded-pill"><i class="bi bi-check-circle-fill me-1"></i> 交易已完成</span>
+                                        </div>
+                                    </div>
+                                    <div class="detail-box border-start border-primary border-4 bg-light text-dark mt-3">
+                                        <h6 class="fw-bold text-primary mb-2"><i class="bi bi-telephone-inbound me-1"></i>買家面交聯絡清單：</h6>
+                                        <div class="row">
+                                            <div class="col-md-6"><strong>買家真實姓名：</strong><span class="text-danger fw-bold">@order.BuyerName</span> (學號: @order.BuyerId)</div>
+                                            <div class="col-md-6"><strong>買家聯絡方式：</strong><span class="text-primary fw-bold">@order.ContactInfo</span></div>
+                                            <div class="col-md-6 mt-2"><strong>約定面交地點：</strong><span class="text-dark bg-warning-subtle px-1">@order.MeetLocation</span></div>
+                                            <div class="col-md-6 mt-2"><strong>約定面交時間：</strong><span class="text-dark bg-warning-subtle px-1">@order.MeetTime</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-coin" style="font-size: 3.5rem;"></i>
+                        <p class="mt-2 fw-bold">目前還沒有成功結案賣出的物品喔！</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="rejectModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form asp-action="RejectOrder" method="post">
+                    <input type="hidden" name="orderId" id="rejectOrderId" value="" />
+
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>婉拒訂單</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-start">
+                        <label class="form-label text-secondary">請選擇或填寫無法交易的原因：</label>
+                        <select name="rejectReason" class="form-select mb-3" onchange="if(this.value=='其他') { document.getElementById('otherReasonInput').style.display='block'; this.name=''; } else { document.getElementById('otherReasonInput').style.display='none'; this.name='rejectReason'; }">
+                            <option value="時間上無法配合">時間上無法配合</option>
+                            <option value="地點太遠無法配合">地點太遠無法配合</option>
+                            <option value="商品已損壞或遺失">商品已損壞或遺失</option>
+                            <option value="其他">其他原因 (自行填寫)</option>
+                        </select>
+                        <input type="text" id="otherReasonInput" name="rejectReason" class="form-control" placeholder="請輸入婉拒原因" style="display:none;" />
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-danger rounded-pill px-4">確認婉拒</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
